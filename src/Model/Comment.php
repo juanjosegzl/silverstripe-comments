@@ -382,6 +382,21 @@ class Comment extends DataObject
     }
 
     /**
+     * Checks if the comment can be updated by its author.
+     *
+     * @param null|int|Member $member
+     * @return Boolean
+     */
+    public function canUpdate($member = null)
+    {
+        $member = $this->getMember($member);
+        $memberID = $member->ID ?? null;
+        $authorID = $this->Author()->ID;
+
+        return $memberID === $authorID;
+    }
+
+    /**
      * Checks if the comment can be deleted.
      *
      * @param null|int|Member $member
@@ -878,6 +893,32 @@ class Comment extends DataObject
         $controller->setOwnerController(Controller::curr());
 
         return $controller->ReplyForm($this);
+    }
+
+    public function UpdateForm()
+    {
+        if (!$this->canUpdate()) {
+            return null;
+        }
+        // Check parent is available
+        $parent = $this->Parent();
+
+        if (!$parent || !$parent->exists()) {
+            return null;
+        }
+
+        // Allow extending the controller here to receive controllers
+        // created by other extensions building on top of Comments
+        // eg. silverstripe-reviews
+        $extended_controller = $this->extend('updateController');
+        $extended_controller = $extended_controller ? $extended_controller[0] : null;
+
+        $controller = $extended_controller ?? CommentingController::create();
+        $controller->setOwnerRecord($parent);
+        $controller->setParentClass($parent->ClassName);
+        $controller->setOwnerController(Controller::curr());
+
+        return $controller->UpdateForm($this);
     }
 
     /**
